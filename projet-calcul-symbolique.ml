@@ -216,7 +216,7 @@ let rec simpl (e:exp) : exp =
              )
              
          |_-> failwith "simpl MONOP2")
-    |_-> failwith "simpl MONOP3") 
+    |_-> failwith ("simpl MONOP3"^str)) 
   |BINOP(str,e1,e2) -> 
       (match str with 
        |"+" -> (match simpl e1,simpl e2 with 
@@ -312,6 +312,18 @@ let rec simpl (e:exp) : exp =
 (*                            ajout de tests                      *)
 (* ============================================================== *) 
 
-let assertions : assertion list = []
+        (*let assertions : assertion list = []*)
 
-
+let assertions = 
+  [ assert_eval [("x",4.)] "(+ x 1)" 5. ;
+    assert_eval [("x",4.)] "(+ x 2)" 6. ;
+    assert_eval [("x",4.);("y",10.)] "(* (/ y 2) (+ x 2)" 30. ;
+    
+    assert_derive "y" "(+ y 2)" "(+ 1 0)" ;
+    assert_derive "y" "(* y 2)" " (+ (* 1 2) (* 0 y)) " ;
+    
+    assert_derive "y" "( tan (* y 2) )" "(* (+ (* 1 2) (* 0 y)) (+ 1 (pow (tan (* y 2)) 2)))" ;
+    assert_simpl "(* (+ (* 1 2) (* 0 y)) (+ 1 (pow (tan (* y 2)) 2)))" "(* 2 (+ (pow (tan (* 2 y)) 2) 1))" ;
+    
+    assert_simpl "(+ x 0)" "x" ; 
+    assert_simpl "(+ x (* 2 (/ 10 2)))" "(+ x 10)" ]
