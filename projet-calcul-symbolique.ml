@@ -372,7 +372,13 @@ let assertions =
     assert_simpl "(* (sqrt 10) (sqrt (pow y 2))" "(sqrt (* 10 (pow y 2)))";
     assert_simpl "(* (e x) (e 1))" "(e (+ x 1))";
     assert_simpl "(+ (ln x) (ln 1))" "(ln x)";
-    assert_simpl "(+ (ln x) (ln 10))" "(ln (* 10 x))"]
+    assert_simpl "(+ (ln x) (ln 10))" "(ln (* 10 x))";
+    assert_simpl "(cos pi)" "-1";
+    assert_simpl "(cos (* 5 pi))" "-1";
+    assert_simpl "(cos 0)" "1";
+    assert_simpl "(sin pi)" "0";
+    assert_simpl "(ln 1)" "0";
+    assert_simpl "(e 0)" "1"]
     
     
     
