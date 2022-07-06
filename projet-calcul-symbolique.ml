@@ -1,7 +1,11 @@
 (* ============================================================== *)
 (*              définition du type des expressions                *)
 (* ============================================================== *)
-
+let (%) x y =
+  let z = x mod y in
+  if z < 0 then z + y else z
+    
+    
 type exp = 
   |VAR of string 
   |N of int
@@ -97,7 +101,7 @@ Cette analyse permet de reconnaître des expressions
           match parse tokens with
           | None,r -> List.rev acc,r
           | Some e,r -> parse_list (e::acc) r 
-        in            
+        in             
         let es,r' = parse_list [] r in
         Some(apply op es),r'
         
@@ -241,9 +245,8 @@ let rec simpl (e:exp) : exp =
               |BINOP("*",N(b),t1) -> ( BINOP("*",N(-1*b),simpl t1))
               |BINOP("*",t1,N(b)) -> ( BINOP("*",N(-1*b),simpl t1)) 
               |t1-> MONOP("-", t1) 
-             )
-             
-         |_-> failwith "simpl MONOP2")
+             ) 
+         |t1 -> MONOP("-",simpl t1) )
     |_-> failwith ("simpl MONOP3"^str)) 
   |BINOP(str,e1,e2) -> 
       (match str with 
@@ -252,9 +255,11 @@ let rec simpl (e:exp) : exp =
            |N(0),t1 -> simpl t1
            |t1,N(0) -> simpl t1
            |N(a),N(b) -> N(a+b) 
-           |BINOP("*",N(n),t1),N(m) -> 
-               let k= pgcd (abs n) (abs m) in if k>1 then BINOP("*",N(k),BINOP("+",BINOP("*",N(n/k),e1),N(m/k)))
-               else t1 
+           |BINOP("*",N(n), t1),N(m) -> 
+               let k= pgcd (abs n) (abs m) in if k>1 then BINOP("*",N(k),BINOP("+",BINOP("*",N(n/k),simpl t1),N(m/k)))
+               else BINOP("+",BINOP("*",N(n),simpl t1),N(m))
+                   (*|N(m),BINOP("*",N(n),t1) -> 
+                     simpl (BINOP("+",BINOP("*",N(n),t1),N(m)))*)
            |N(a),t1 ->  (BINOP("+",simpl t1,N(a))) 
            |t1,N(a) ->  (BINOP("+",simpl t1,N(a)))
            |t1,t2 ->if comp t1 t2 = true then  BINOP("*",N(2),simpl t2) else BINOP("+",t1,t2)
@@ -271,11 +276,11 @@ let rec simpl (e:exp) : exp =
            |t1,N(0) ->  t1
            |N(a),N(b) -> N(a-b) 
            |BINOP("*",N(n), e),N(a) ->  let k = pgcd (abs n) (abs a)  and e =(simpl e ) and t1=BINOP("*",N(n), e) in
-               if k > 1 then ((BINOP("*", N(k), BINOP("-", BINOP("*", N(n/k), e),N(a/k) ))))
+               if k > 1 then ((BINOP("*", N(k), BINOP("-",N(a/k), BINOP("*", N(n/k), e) ))))
                else (BINOP("-", t1,N(a)))
                     
            |N(a),BINOP("*",N(n), e) ->   let k = pgcd (abs n) (abs a)and e =(simpl e ) and t1=BINOP("*",N(n), e) in 
-               if k > 1 then ( (BINOP("*", N(k), BINOP("-" , BINOP("*", N(n/k), e),N(a/k)))))
+               if k > 1 then ( (BINOP("*", N(k), BINOP("-" , N(a/k),BINOP("*", N(n/k), e)))))
                else (BINOP("-",N(a),t1))
                     
            |t1,MONOP("-",t2) ->  (BINOP("+",simpl t1,simpl t2)) 
@@ -289,33 +294,34 @@ let rec simpl (e:exp) : exp =
                            
        
        |"*" -> (match (simpl e1),(simpl e2) with
-           |MONOP("e",a),MONOP("e",b) -> MONOP("e", BINOP("+", a,b))
-           |MONOP("sqrt",a),MONOP("sqrt", b) -> MONOP("sqrt", BINOP("*", a, b)) 
+           |MONOP("e",a),MONOP("e",b) -> MONOP("e", BINOP("+", simpl a,simpl b))
+           |MONOP("sqrt",a),MONOP("sqrt", b) -> MONOP("sqrt", BINOP("*", simpl a, simpl b)) 
            |N(a),N(b) -> N(a*b) 
-           |N(1),t1 -> simpl t1
-           |t1,N(1) -> simpl t1
+           |N(1),t1 ->  t1
+           |t1,N(1) ->  t1
            |_,N(0) -> N(0)
-           |N(0),_ -> N(0)
-           |t1,BINOP("/",t2,t3) -> BINOP("/",BINOP("*",t1,t2),t3) 
-           |t1,N(a) -> BINOP("*",N(a),t1)
-           |N(n),BINOP("*",N(m),t1) ->   (BINOP("*",N(n*m),simpl t1)) 
+           |N(0),_ -> N(0) 
+           |t1,N(a) -> simpl (BINOP("*",N(a),t1))
+                         (*|t1,BINOP("/",t2,t3) -> BINOP("/",BINOP("*",t1,simpl t2),simpl t3)*) 
+           |N(n),BINOP("*",N(m),t1) ->(BINOP("*",N(n*m),simpl t1)) 
            |t1,t2 -> if (comp t1 t2 )=true then   (BINOP("pow",simpl t1,N(2))) else (
-               (match t1,t2 with 
+               (match simpl t1,simpl t2 with 
                 |BINOP("/", e1,e2),e3 -> BINOP("/",e2,BINOP("*",e1,e3))
                 |t1,(BINOP("pow",t3,N(n)))  when ((comp t3 t1)=true) ->  (BINOP("pow",simpl t1,N(n+1)) ) 
-                |t1,t2 -> BINOP("*",t1,t2)                         (*|(BINOP("pow",t3,N(n))),t2  when ((comp t3 t2)=true) ->  (BINOP("pow",simpl t2,N(n+1)) )*)
+  (*|(BINOP("pow",t3,N(n))),t2  when ((comp t3 t2)=true) ->  (BINOP("pow",simpl t3,N(n+1)) )*)
+                |t1,t2 -> BINOP("*",t1,t2)
                 | _-> failwith "simpl MULTIPLY"  ))                                            
   
          )
        |"/" -> (match simpl e1,simpl e2 with 
-           |MONOP("e",a),MONOP("e",b) -> MONOP("e", BINOP("-", a,b));
-           | MONOP("sqrt",a),MONOP("sqrt",b) -> MONOP("sqrt", BINOP("/", a, b))
+           |MONOP("e",a),MONOP("e",b) -> MONOP("e", BINOP("-", simpl a,simpl b));
+           |MONOP("sqrt",a),MONOP("sqrt",b) -> MONOP("sqrt", BINOP("/",simpl a, simpl b))
            |t1,N(1) ->  t1 
            |N(0),_ -> N(0) 
-           |N(a),N(b) ->  (let k = (pgcd (abs a) (abs b)) in (if k > 1 then  ( simpl (BINOP("/", N(a/k),N(b/k) )))else BINOP("/",N(a),N(b))))
-           |t1,BINOP("/",t2,t3) -> BINOP("/",BINOP("*", t1,simpl t2),simpl t3)
+           |N(a),N(b) ->  if (a mod b )=0 then N(a/b) else (let k = (pgcd (abs a) (abs b)) in (if k > 1 then  ( simpl (BINOP("/", N(a/k),N(b/k) )))else BINOP("/",N(a),N(b))))
+           |t1,BINOP("/",t2,t3) -> BINOP("/",BINOP("*", t1,simpl t3),simpl t2)
            |BINOP("/",t1,t2),t3 -> BINOP("/",simpl t1,BINOP("*",simpl t2, t3))
-           |t1,t2 -> if (comp t1 t2 )=true then N(1) else BINOP("/",t1,t2)
+           |t1,t2 -> if (comp t1 t2 )=true then N(1) else BINOP("/",simpl t1,simpl t2)
            |_->failwith "simpl DIVISE"
                        
            
@@ -354,7 +360,8 @@ let assertions =
     assert_simpl "(* (+ (* 1 2) (* 0 y)) (+ 1 (pow (tan (* y 2)) 2)))" "(* 2 (+ (pow (tan (* 2 y)) 2) 1))" ;
     
     assert_simpl "(+ x 0)" "x" ; 
-    assert_simpl "(+ x (* 2 (/ 10 2)))" "(+ x 10)" ]
+    assert_simpl "(+ x (* 2 (/ 10 2)))" "(+ x 10)" 
+    assert_simpl "(* (e 2) (e 8))" "(e 10)"]
     
     
     
