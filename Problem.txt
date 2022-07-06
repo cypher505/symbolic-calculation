@@ -2,3 +2,15 @@
 
 donne 6 
 mais cest 9
+
+
+###########################################
+
+
+L'expression suivante :
+(fun s -> to_string (simpl (of_string s))) "(* (* y y) y)"
+
+... produit la valeur :
+"(pow y 3)"
+C'est incorrect. Je m'attendais à recevoir la valeur :
+"(* (pow y 2) y)"
