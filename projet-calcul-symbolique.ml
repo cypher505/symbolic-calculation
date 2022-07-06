@@ -175,6 +175,9 @@ let rec derive (x:tname) (e:exp) : exp =match e with
        |"sin" -> BINOP("*",(derive x e1),MONOP("cos",e1))
        |"cos" -> MONOP("-",BINOP("*",(derive x e1),MONOP("sin",e1)))
        |"tan" -> BINOP("*",(derive x e1),BINOP("+",N(1),BINOP("pow",MONOP("tan",e1),N(2))))
+       | "e" -> BINOP("*", (derive x e1), MONOP("e", e1))
+       | "ln" -> BINOP("/", (derive x e1), e1)
+       | "sqrt" -> BINOP("/", (derive x e1), BINOP("*", N(2), MONOP("sqrt", e1)))
        |_ -> failwith ("DERIVE MONO"))
   |BINOP(str,e1,e2) -> (match str with
       |"+" -> BINOP("+",(derive x e1),(derive x e2))
@@ -251,7 +254,7 @@ let rec simpl (e:exp) : exp =
   |BINOP(str,e1,e2) -> 
       (match str with 
        |"+" -> (match simpl e1,simpl e2 with 
-           |MONOP("ln",a),MONOP("ln",b) -> MONOP("ln", BINOP("*",a,b))
+           |MONOP("ln",a),MONOP("ln",b) -> MONOP("ln", simpl (BINOP("*",a,b)))
            |N(0),t1 -> simpl t1
            |t1,N(0) -> simpl t1
            |N(a),N(b) -> N(a+b) 
@@ -294,7 +297,7 @@ let rec simpl (e:exp) : exp =
                            
        
        |"*" -> (match (simpl e1),(simpl e2) with
-           |MONOP("e",a),MONOP("e",b) -> MONOP("e", BINOP("+", simpl a,simpl b))
+           |MONOP("e",a),MONOP("e",b) -> MONOP("e", simpl (BINOP("+", simpl a,simpl b)))
            |MONOP("sqrt",a),MONOP("sqrt", b) -> MONOP("sqrt", BINOP("*", simpl a, simpl b)) 
            |N(a),N(b) -> N(a*b) 
            |N(1),t1 ->  t1
@@ -351,17 +354,25 @@ let rec simpl (e:exp) : exp =
 let assertions = 
   [ assert_eval [("x",4.)] "(+ x 1)" 5. ;
     assert_eval [("x",4.)] "(+ x 2)" 6. ;
-    assert_eval [("x",4.);("y",10.)] "(* (/ y 2) (+ x 2)" 30. ;
+    assert_eval [("x",4.);("y",10.)] "(* (/ y 2) (+ x 2)" 30. ; 
     
     assert_derive "y" "(+ y 2)" "(+ 1 0)" ;
     assert_derive "y" "(* y 2)" " (+ (* 1 2) (* 0 y)) " ;
     
     assert_derive "y" "( tan (* y 2) )" "(* (+ (* 1 2) (* 0 y)) (+ 1 (pow (tan (* y 2)) 2)))" ;
-    assert_simpl "(* (+ (* 1 2) (* 0 y)) (+ 1 (pow (tan (* y 2)) 2)))" "(* 2 (+ (pow (tan (* 2 y)) 2) 1))" ;
-    
+    assert_derive "x" "(e x)" "(* 1 (e x))";
+    assert_derive "x" "(ln x)" "(/ 1 x)" ;
+    assert_derive "x" "(sqrt x)" "(/ 1 (* 2 (sqrt x)))";
+                                                        
+    assert_simpl "(* (+ (* 1 2) (* 0 y)) (+ 1 (pow (tan (* y 2)) 2)))" "(* 2 (+ (pow (tan (* 2 y)) 2) 1))" ; 
     assert_simpl "(+ x 0)" "x" ; 
-    assert_simpl "(+ x (* 2 (/ 10 2)))" "(+ x 10)" 
-    assert_simpl "(* (e 2) (e 8))" "(e 10)"]
+    assert_simpl "(+ x (* 2 (/ 10 2)))" "(+ x 10)";
+    assert_simpl "(* (e 2) (e 8))" "(e 10)";
+    assert_simpl "(+ (ln 2) (ln 8))" "(ln 16)";
+    assert_simpl "(* (sqrt 10) (sqrt (pow y 2))" "(sqrt (* 10 (pow y 2)))";
+    assert_simpl "(* (e x) (e 1))" "(e (+ x 1))";
+    assert_simpl "(+ (ln x) (ln 1))" "(ln x)";
+    assert_simpl "(+ (ln x) (ln 10))" "(ln (* 10 x))"]
     
     
     
