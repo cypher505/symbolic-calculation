@@ -1,0 +1,4 @@
+(fun env -> fun s -> eval env (of_string s)) [("y", 2.)] "(let x = (+ 1 y) in (let y = (+ 1 y) in (* x y)))"
+
+donne 6 
+mais cest 9

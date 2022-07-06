@@ -6,11 +6,15 @@ type exp =
   |VAR of string 
   |N of int
   |MONOP of string * exp 
-  |BINOP of string * exp * exp;;
+  |BINOP of string * exp * exp
+            
+            
   
 let integer (n:int) : exp = N (n);;
 
 let name (x:tname) : exp = VAR (x) ;;
+
+let mk_let  (x:tname) (e1 :exp) (e2:exp) : exp = BINOP(x,e1,e2);;
 
 let rec apply (op:tname) (args:exp list) =
   match op,args with 
@@ -22,6 +26,13 @@ let rec apply (op:tname) (args:exp list) =
 (* ============================================================== *)
 (*                           analyse syntaxique                   *)
 (* ============================================================== *)
+let rec to_string (e:exp) : string = 
+  match e with 
+  |N(a) -> string_of_int a 
+  |VAR(a) -> a 
+  |MONOP(str,e1) -> "("^str^" "^(to_string e1)^")"
+  |BINOP(str,e1,e2) -> "("^str^" "^(to_string e1)^" "^(to_string e2)^")";;
+
 
 let of_string (s : string) : 'a =
   (* analyse syntaxique d'une suite de lexèmes (tokens)
@@ -40,7 +51,8 @@ Cette analyse permet de reconnaître des expressions
     match tokens with
     | [] -> 
       (* s'il n'y a plus rien à analyser, l'expression à été reconnue *)
-        None,[]
+        None,[] 
+             
     | INT n :: r ->
         (* si le premier lexème (token) rencontré est un entier littéral,
            alors on transforme cet entier en une expression (de type exp)
@@ -57,8 +69,19 @@ Cette analyse permet de reconnaître des expressions
       (* si on rencontre une parenthèse fermante, 
          la sous-expression à analyser se termine (None)
          et il reste à analyser le reste [r] de la séquence de lexèmes 
-         à analyser. *)
+         à analyser. *) 
         None,r
+        
+    | OPEN :: NAME "let" :: NAME x :: NAME "=" :: r -> 
+        (* reconnaît la construction [(let x = e1 in e2)]. 
+           Par exemple [(let x = (+ x 1) in (/ x 2))] *)
+        (match parse r with 
+         | Some e1, NAME "in" :: r1 -> 
+             (match parse r1 with 
+              | Some e2,CLOSE :: r2 -> Some(mk_let x e1 e2),r2
+              | _,_ -> failwith ("syntax error: let ... in ???"))
+         | _,_ -> failwith ("syntax error: let ??? in ..."))
+        
     | OPEN :: NAME op :: r -> 
       (* si on rencontre une parenthèse ouvrante suivie d'un nom,
          alors on est en train d'analyser une sous-expression
@@ -77,6 +100,11 @@ Cette analyse permet de reconnaître des expressions
         in            
         let es,r' = parse_list [] r in
         Some(apply op es),r'
+        
+        
+
+        
+    
   in
 
   (* on utilise ici [lexer s] pour obtenir une suite de lexèmes à partir 
@@ -93,9 +121,10 @@ Cette analyse permet de reconnaître des expressions
 (* ============================================================== *)
 
 let rec trouve_val l s = if s = "pi" then Float.pi else match l with
-    |[] -> failwith "trouve_val not found"
-           
-    |(n,v)::xs -> if n = s then v else trouve_val xs s ;;
+    |[] -> failwith ("trouve_val not found ("^s^")") 
+    |(n,v)::xs -> if (String.equal n  s)=true then v else trouve_val xs s ;;
+
+
 
 let rec eval (env:tenv) (e:exp) : float = 
   match e with 
@@ -112,7 +141,7 @@ let rec eval (env:tenv) (e:exp) : float =
       |"sqrt",e -> Float.sqrt ( eval env e)
       |"e",e -> Float.exp ( eval env e)
       |"ln",e -> Float.log10 ( eval env e)
-      | _ -> failwith ("operation not found"^str))
+      | _ -> failwith ("operation not found"^str)) 
   |BINOP(s,e1,e2) ->  (
       match s with 
       |"+" -> (eval env e1)+.(eval env e2)
@@ -120,7 +149,11 @@ let rec eval (env:tenv) (e:exp) : float =
       |"*" -> (eval env e1)*.(eval env e2)
       |"/" -> (eval env e1)/.(eval env e2)
       |"pow" -> (eval env e1)**(eval env e2)
-      |_ -> failwith ("expression not recognized"^s) )
+      |x -> (eval ( [(x,(eval env e1))]@env ) e2)
+
+    )
+   
+      
     
               
               
@@ -159,12 +192,7 @@ let rec comp e1 e2 =
   |BINOP(str1,t1,t2),BINOP(str2,tt1,tt2) -> (String.equal str1 str2)&&( (comp t1 tt1))&&(comp t2 tt2)
   |_-> false;;
 
-let rec to_string (e:exp) : string = 
-  match e with 
-  |N(a) -> string_of_int a 
-  |VAR(a) -> a 
-  |MONOP(str,e1) -> "("^str^" "^(to_string e1)^")"
-  |BINOP(str,e1,e2) -> "("^str^" "^(to_string e1)^" "^(to_string e2)^")";;
+
 
 
 let rec pgcd n m = 
@@ -327,3 +355,10 @@ let assertions =
     
     assert_simpl "(+ x 0)" "x" ; 
     assert_simpl "(+ x (* 2 (/ 10 2)))" "(+ x 10)" ]
+    
+    
+    
+    
+    
+    
+    
