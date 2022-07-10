@@ -32,3 +32,13 @@ L'expression suivante :
 "(/ 10 (* 27 x))"
 C'est incorrect. Je m'attendais à recevoir la valeur :
 "(/ 1080 x)"
+
+
+#################################################################################################################################
+
+(fun s -> to_string (simpl (of_string s))) "(* (* (+ (/ (* (* 1 (* y (* y y))) x) 3) 3) 1) (* 1 (- (* 5 (* 6 (/ (* 4 7) 3))))))"
+
+... produit la valeur :
+"(* -3 (/ (+ (* (pow y 3) (/ x 3)) 3) 840))"
+C'est incorrect. Je m'attendais à recevoir la valeur :
+"(* -280 (+ (/ (* (pow y 3) x) 3) 3))"
