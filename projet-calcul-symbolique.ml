@@ -1,11 +1,7 @@
-
 (* ============================================================== *)
 (*              définition du type des expressions                *)
 (* ============================================================== *)
-let (%) x y =
-  let z = x mod y in
-  if z < 0 then z + y else z
-    
+
     
 type exp = 
   |VAR of string 
@@ -271,9 +267,9 @@ let rec simpl (e:exp) : exp =
              |BINOP("*",N(n), t1),N(m) -> 
                  let k= pgcd (abs n) (abs m) in if k>1 then BINOP("*",N(k),BINOP("+",BINOP("*",N(n/k),loop t1),N(m/k)))
                  else BINOP("+",BINOP("*",N(n),loop t1),N(m))
-                   (*|N(m),BINOP("*",N(n),t1) -> 
-                     loop (BINOP("+",BINOP("*",N(n),t1),N(m)))*) 
-             |t1,N(a) ->  (BINOP("+", N(a),t1)) 
+                   
+             |t1,N(a) ->  (BINOP("+",t1,N(a)))
+             |N(a),t1 ->  (BINOP("+",t1,N(a)))
              |t1,t2 ->if comp t1 t2 = true then  BINOP("*",N(2), t2) else BINOP("+",t1,t2)
              |_->failwith "loop ADITION" 
            ) 
@@ -312,16 +308,14 @@ let rec simpl (e:exp) : exp =
              |t1,N(1) ->  t1
              |_,N(0) -> N(0)
              |N(0),_ -> N(0) 
-             |t1,N(a) ->  (BINOP("*",N(a),t1))
-                         (*|t1,BINOP("/",t2,t3) -> BINOP("/",BINOP("*",t1,loop t2),loop t3)*) 
+             |t1,N(a) ->  (BINOP("*",N(a),t1)) 
              |N(n),BINOP("*",N(m),t1) ->(BINOP("*",N(n*m),loop t1)) 
-                                          (*|N(n),BINOP("*",t1,N(m)) ->(BINOP("*",N(n*m),loop t1))*)
              |t1,t2 -> if (comp t1 t2 )=true then   (BINOP("pow", t1,N(2))) else (
                  (match  t1, t2 with 
                   |BINOP("/", h1,h2),h3 ->( BINOP("/",BINOP("*",loop h1, h3),loop h2)) 
                   |h1,BINOP("/", h2,h3) -> ( BINOP("/",BINOP("*", h1, loop h2),loop h3)) 
                   |h1,(BINOP("pow",h3,N(n)))  when ((comp (loop h3) h1)=true) ->  (BINOP("pow", h1,N(n+1)) ) 
-  (*|(BINOP("pow",t3,N(n))),t2  when ((comp t3 t2)=true) ->  (BINOP("pow",loop t3,N(n+1)) )*)
+                  |(BINOP("pow",t3,N(n))),t2  when ((comp t3 t2)=true) ->  (BINOP("pow",loop t3,N(n+1)) )
                   |h1,h2 -> BINOP("*",h1,h2)
                   | _-> failwith "loop MULTIPLY"  ))                                            
   
@@ -329,14 +323,14 @@ let rec simpl (e:exp) : exp =
          |"/" -> (match loop e1,loop e2 with 
              |MONOP("e",a),MONOP("e",b) ->  MONOP("e", BINOP("-", loop a,loop b));
              |MONOP("sqrt",a),MONOP("sqrt",b) -> MONOP("sqrt", BINOP("/",loop a, loop b))
-             |t1,N(1) -> let () =print_string ("1") in let () =print_newline ()in t1 
-             |N(0),_ -> let () =print_string ("2") in let () =print_newline ()in N(0) 
-             |t1,N(0) ->let () =print_string ("3") in let () =print_newline ()in BINOP("/",t1,N(0))
-             |N(a),N(b) -> let () =print_string ("4"^(to_string(N(a/b)))) in let () =print_newline ()in if ((a mod b )=0 ) then N(a/b) else (let k = (pgcd (abs a) (abs b)) in (if k > 1 then  (  (BINOP("/", N(a/k),N(b/k) )))else BINOP("/",N(a),N(b)))) 
-             |BINOP("*",t1,t2),t3 -> let () =print_string ("5"^(to_string t1)^"*"^(to_string t2)^"/"^(to_string t3)) in let () =print_newline ()in BINOP("*",BINOP("/",loop t1, t3),loop t2)
-             |t1,BINOP("/",t2,t3) -> let () =print_string ("6") in let () =print_newline ()in BINOP("/",BINOP("*", t1,loop t3),loop t2)
-             |BINOP("/",t1,t2),t3 -> let () =print_string ("7") in let () =print_newline ()in BINOP("/",loop t1,BINOP("*",loop t2, t3)) 
-             |t1,t2 -> let () =print_string ("8"^(to_string(BINOP("/",t1,t2)))) in let () =print_newline ()in if (comp t1 t2 )=true then N(1) else BINOP("/", t1, t2)
+             |t1,N(1) ->  t1 
+             |N(0),_ ->  N(0) 
+             |t1,N(0) -> BINOP("/",t1,N(0))
+             |N(a),N(b) ->  if ((a mod b )=0 ) then N(a/b) else (let k = (pgcd (abs a) (abs b)) in (if k > 1 then  (  (BINOP("/", N(a/k),N(b/k) )))else BINOP("/",N(a),N(b)))) 
+             |BINOP("*",t1,t2),t3 ->  BINOP("*",BINOP("/",loop t1, t3),loop t2)
+             |t1,BINOP("/",t2,t3) ->  BINOP("/",BINOP("*", t1,loop t3),loop t2)
+             |BINOP("/",t1,t2),t3 ->  BINOP("/",loop t1,BINOP("*",loop t2, t3)) 
+             |t1,t2 ->  if (comp t1 t2 )=true then N(1) else BINOP("/", t1, t2)
              |_->failwith "loop DIVISE"
                            
            )
@@ -355,7 +349,7 @@ let rec simpl (e:exp) : exp =
          |_-> failwith " loope"
          
         )           
-  in let sim1= loop e in let sim2 = loop sim1 in let sim3=loop sim2 in if (( (String.length (to_string sim1)) = (String.length (to_string sim2)) ) && ( (String.length (to_string sim2)) = (String.length (to_string sim3)) ))then sim2 else simpl sim3;;
+  in let sim1= loop e in let sim2 = loop sim1  in if (( (String.length (to_string sim1)) = (String.length (to_string sim2)) ) )then sim2 else simpl sim2;;
       
 (* ============================================================== *)
 (*                            ajout de tests                      *)
@@ -367,11 +361,12 @@ let assertions =
   [ assert_eval [("x",4.)] "(+ x 1)" 5. ;
     assert_eval [("x",4.)] "(+ x 2)" 6. ;
     assert_eval [("x",4.);("y",10.)] "(* (/ y 2) (+ x 2)" 30. ; 
-    assert_eval [("x",4.)] "(+ x 2)" 6. ;
+    assert_eval [] "(let x = (+ 1 2) in (* 2 x))" 6. ;
+    assert_eval [] "(let x = (* 3 3) in (/ 18 x))" 2. ;
+    
     
     assert_derive "y" "(+ y 2)" "(+ 1 0)" ;
-    assert_derive "y" "(* y 2)" " (+ (* 1 2) (* 0 y)) " ;
-    
+    assert_derive "y" "(* y 2)" " (+ (* 1 2) (* 0 y)) " ; 
     assert_derive "y" "( tan (* y 2) )" "(* (+ (* 1 2) (* 0 y)) (+ 1 (pow (tan (* y 2)) 2)))" ;
     assert_derive "x" "(e x)" "(* 1 (e x))";
     assert_derive "x" "(ln x)" "(/ 1 x)" ;
