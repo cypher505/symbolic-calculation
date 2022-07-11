@@ -1,7 +1,7 @@
 (* ============================================================== *)
 (*              définition du type des expressions                *)
 (* ============================================================== *)
-
+(*              Zein SAKKOUR,Robin LACAZE                *)
     
 type exp = 
   |VAR of string 
